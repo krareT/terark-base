@@ -82,6 +82,7 @@ Both compiling and running are much fast than `boost::lexical_cast`.
 ```
 
 <h3 id="read-text-lines">Read text lines</h3>
+
 ```c++
 #include <terark/util/linebuf.hpp>
 
