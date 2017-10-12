@@ -62,8 +62,8 @@ supporting DFA memory map in an graceful way.
 
 <h4 id="memmove-able">memmove-able</h4>
 
-When memmove an object `x` to another memory block `y` without destruct `x`,
-if `y` can be used as it is `x`, then `x` is memmove-able.
+When memmove an object `x` of type `T` to another memory block `y` without destruct `x`,
+if `y` can be used as if it is `x`, then type `T` is memmove-able.
 
 For example, gnu `std::list,map,set`... are not memmove-able, because they
 have self-references.
