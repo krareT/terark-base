@@ -16,6 +16,7 @@ $ make
 * [Read text lines](#read-text-lines)
 
 <h3 id="valvec">valvec</h3>
+
 `terark::valvec` is a alternative to `std::vector`, it use `malloc`/`realloc`/`free`
 to manage memory. `Type` of `terark::valvec<Type>` must be [memmove-able](#memmove-able).
 
@@ -60,6 +61,7 @@ supporting DFA memory map in an graceful way.
 ```
 
 <h4 id="memmove-able">memmove-able</h4>
+
 When memmove an object `x` to another memory block `y` without destruct `x`,
 if `y` can be used as it is `x`, then `x` is memmove-able.
 
@@ -67,6 +69,7 @@ For example, gnu `std::list,map,set`... are not memmove-able, because they
 have self-references.
 
 <h3 id="lexical-cast">Lexical Cast</h3>
+
 Both compiling and running are much fast than `boost::lexical_cast`.
 ```c++
 #include <terark/lcast.hpp>
