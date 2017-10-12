@@ -101,14 +101,14 @@ int main(int argc, char* argv[]) {
     MyData3 d3;
     // set d3 values
     // ...
-	SysData1 sd1;
-	SysData2 sd2;
+    SysData1 sd1;
+    SysData2 sd2;
     output << d1 << d2 << d3 << sd1 << sd2; // saving
 
     input = output.head(); // shallow copy, input is the written part of output
     input >> d1 >> d2 >> d3 >> sd1 >> sd2; // loading
 
-	output.rewind(); // rewind the write pointer
+    output.rewind(); // rewind the write pointer
     output & d1 & d2 & d3 & sd1 & sd2; // saving, '&' is an alias of '<<'
 
     input = output.head(); // shallow copy, input is the written part of output 
