@@ -639,6 +639,11 @@ void FixedLenStrVec::shrink_to_fit() {
     m_strpool.shrink_to_fit();
 }
 
+void FixedLenStrVec::risk_release_ownership() {
+    m_strpool.risk_release_ownership();
+    m_size = 0;
+}
+
 void FixedLenStrVec::swap(FixedLenStrVec& y) {
     assert(m_fixlen * m_size == m_strpool.size());
     assert(y.m_fixlen * y.m_size == y.m_strpool.size());
@@ -770,12 +775,48 @@ size_t FixedLenStrVec::upper_bound_at_pos(size_t lo, size_t hi, size_t pos, byte
 
 size_t FixedLenStrVec::lower_bound(fstring key) const {
     assert(m_fixlen * m_size == m_strpool.size());
-    return lower_bound_0<const FixedLenStrVec&>(*this, m_size, key);
+    return lower_bound(0, m_size, key);
+//  return lower_bound_0<const FixedLenStrVec&>(*this, m_size, key);
 }
 
 size_t FixedLenStrVec::upper_bound(fstring key) const {
     assert(m_fixlen * m_size == m_strpool.size());
-    return upper_bound_0<const FixedLenStrVec&>(*this, m_size, key);
+    return upper_bound(0, m_size, key);
+//  return upper_bound_0<const FixedLenStrVec&>(*this, m_size, key);
+}
+
+size_t FixedLenStrVec::lower_bound(size_t lo, size_t hi, fstring key) const {
+	assert(m_fixlen * m_size == m_strpool.size());
+	assert(lo <= hi);
+	assert(hi <= m_size);
+	auto fixlen = m_fixlen;
+	auto data = m_strpool.data();
+	while (lo < hi) {
+		size_t mid_idx = (lo + hi) / 2;
+		size_t mid_pos = fixlen * mid_idx;
+		if (fstring(data + mid_pos, fixlen) < key)
+			lo = mid_idx + 1;
+		else
+			hi = mid_idx;
+	}
+	return lo;
+}
+
+size_t FixedLenStrVec::upper_bound(size_t lo, size_t hi, fstring key) const {
+	assert(m_fixlen * m_size == m_strpool.size());
+	assert(lo <= hi);
+	assert(hi <= m_size);
+	auto fixlen = m_fixlen;
+	auto data = m_strpool.data();
+	while (lo < hi) {
+		size_t mid_idx = (lo + hi) / 2;
+		size_t mid_pos = fixlen * mid_idx;
+		if (fstring(data + mid_pos, fixlen) <= key)
+			lo = mid_idx + 1;
+		else
+			hi = mid_idx;
+	}
+	return lo;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -126,6 +126,7 @@ public:
     void reserve(size_t strNum, size_t maxStrPool);
     void finish() { shrink_to_fit(); }
     void shrink_to_fit();
+    void risk_release_ownership();
 
     double avg_size() const { return m_fixlen; }
     size_t mem_cap () const { return m_strpool.capacity(); }
@@ -158,6 +159,8 @@ public:
     size_t upper_bound_at_pos(size_t lo, size_t hi, size_t pos, byte_t ch) const;
     size_t lower_bound(fstring) const;
     size_t upper_bound(fstring) const;
+    size_t lower_bound(size_t lo, size_t hi, fstring) const;
+    size_t upper_bound(size_t lo, size_t hi, fstring) const;
 };
 
 class TERARK_DLL_EXPORT SortedStrVec {

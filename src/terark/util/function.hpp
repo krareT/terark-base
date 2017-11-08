@@ -38,10 +38,9 @@ namespace terark {
 		~OnScopeExit() { on_exit(); }
 	};
 #define TERARK_SCOPE_EXIT(...) \
-	auto                 func_on_exit_##__LINE__ = [&]() { __VA_ARGS__; }; \
-	terark:: \
-	OnScopeExit<decltype(func_on_exit_##__LINE__)> \
-						 call_on_exit_##__LINE__(func_on_exit_##__LINE__)
+    auto BOOST_PP_CAT(func_on_exit_,__LINE__) = [&]() { __VA_ARGS__; }; \
+    terark::OnScopeExit<decltype(BOOST_PP_CAT(func_on_exit_,__LINE__))> \
+        BOOST_PP_CAT(call_on_exit_,__LINE__)(BOOST_PP_CAT(func_on_exit_,__LINE__))
 
 
 } // namespace terark

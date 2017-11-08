@@ -7,8 +7,10 @@
 
 namespace terark {
 
+class OutputBuffer;
+
 // memory layout is binary compatible to SortedUintVec
-class UintVecMin0 {
+class TERARK_DLL_EXPORT UintVecMin0 {
 protected:
 	valvec<byte> m_data;
 	size_t m_bits;
@@ -214,6 +216,22 @@ public:
 			set_wire(i, Uint(src[i] - min_val));
 		return min_val;
 	}
+
+    class TERARK_DLL_EXPORT Builder {
+    public:
+        struct BuildResult {
+            size_t uintbits;    // UintVecMin0::uintbits()
+            size_t size;        // UintVecMin0::size()
+            size_t mem_size;    // UintVecMin0::mem_size()
+        };
+        virtual ~Builder();
+        virtual void push_back(size_t value) = 0;
+        virtual BuildResult finish() = 0;
+    };
+    static Builder* create_builder_by_uintbits(size_t uintbits, const char* fpath);
+    static Builder* create_builder_by_max_value(size_t max_val, const char* fpath);
+    static Builder* create_builder_by_uintbits(size_t uintbits, OutputBuffer* buffer);
+    static Builder* create_builder_by_max_value(size_t max_val, OutputBuffer* buffer);
 };
 
 template<class Int>
