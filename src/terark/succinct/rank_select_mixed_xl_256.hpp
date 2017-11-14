@@ -127,6 +127,8 @@ protected:
     size_t m_capacity;  // bytes;
     union
     {
+        // m_flags must be member of this
+        // for d<0> and d<1> build cache
         uint64_t m_flags;
         struct
         {

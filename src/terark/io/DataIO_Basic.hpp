@@ -129,20 +129,20 @@ auto
 Workaround_IncompleteType_for_is_dump(DataIO* dio, Derived& derived) ->
 decltype(derived._M_Deduce_DataIO_is_realdump(dio).is_dumpable());
 
-template<class DataIO, class Derived, class Class>
+template<class DataIO, class Derived>
 auto
 Workaround_IncompleteType_for_need_bswap(DataIO* dio, Derived& derived) ->
 decltype(derived._M_Deduce_DataIO_need_bswap(dio).need_bswap());
 
-    #define DATA_IO_GEN_DUMP_TYPE_TRAITS_REG(Friend, Derived, Class) \
-      template<class DataIO> \
-      Friend auto \
-	  Deduce_DataIO_need_bswap(DataIO* dio, Class& self) -> \
-      decltype(terark::Workaround_IncompleteType_for_need_bswap(dio, static_cast<Derived&>(self))); \
-      template<class DataIO> \
-      Friend auto \
-	  Deduce_DataIO_is_dump(DataIO* dio, Class& self) -> \
-      decltype(terark::Workaround_IncompleteType_for_is_dump(dio, static_cast<Derived&>(self)));
+#define DATA_IO_GEN_DUMP_TYPE_TRAITS_REG(Friend, Derived, Class) \
+    template<class DataIO> \
+    Friend auto \
+    Deduce_DataIO_need_bswap(DataIO* dio, Class& self) -> \
+    decltype(terark::Workaround_IncompleteType_for_need_bswap(dio, static_cast<Derived&>(self))); \
+    template<class DataIO> \
+    Friend auto \
+    Deduce_DataIO_is_dump(DataIO* dio, Class& self) -> \
+    decltype(terark::Workaround_IncompleteType_for_is_dump(dio, static_cast<Derived&>(self)));
 #else
     #define DATA_IO_GEN_DUMP_TYPE_TRAITS(Class, Members)
     #define DATA_IO_GEN_DUMP_TYPE_TRAITS_REG(Friend, Derived, Class)

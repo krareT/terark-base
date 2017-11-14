@@ -181,6 +181,7 @@ void rank_select_mixed_il_256::shrink_to_fit() {
 void rank_select_mixed_il_256::swap(rank_select_mixed_il_256& y) {
     std::swap(m_lines, y.m_lines);
     std::swap(m_size, y.m_size);
+    std::swap(m_flags, y.m_flags);
     std::swap(m_capacity, y.m_capacity);
     std::swap(m_sel0_cache, y.m_sel0_cache);
     std::swap(m_sel1_cache, y.m_sel1_cache);

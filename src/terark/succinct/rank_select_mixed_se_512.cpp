@@ -192,6 +192,7 @@ void rank_select_mixed_se_512::swap(rank_select_mixed_se_512& y) {
     std::swap(m_words, y.m_words);
     std::swap(m_size, y.m_size);
     std::swap(m_capacity, y.m_capacity);
+    std::swap(m_flags, y.m_flags);
     std::swap(m_rank_cache, y.m_rank_cache);
     std::swap(m_sel0_cache, y.m_sel0_cache);
     std::swap(m_sel1_cache, y.m_sel1_cache);
