@@ -39,11 +39,15 @@ namespace terark {
 	#define DATA_IO_BSWAP_FOR_LITTLE(T) ByteSwap_false
 	#define BYTE_SWAP_IF_LITTLE_ENDIAN(x) x = terark::byte_swap(x)
 	#define BYTE_SWAP_IF_BIG_ENDIAN(x)
+  #define VALUE_OF_BYTE_SWAP_IF_LITTLE_ENDIAN(x) terark::byte_swap(x)
+  #define VALUE_OF_BYTE_SWAP_IF_BIG_ENDIAN(x) x
 #elif defined(BOOST_BIG_ENDIAN)
 	#define DATA_IO_BSWAP_FOR_BIG(T)    ByteSwap_false
 	#define DATA_IO_BSWAP_FOR_LITTLE(T) typename DataIO_need_bswap<T>::type
 	#define BYTE_SWAP_IF_LITTLE_ENDIAN(x)
 	#define BYTE_SWAP_IF_BIG_ENDIAN(x)  x = terark::byte_swap(x)
+  #define VALUE_OF_BYTE_SWAP_IF_LITTLE_ENDIAN(x) x
+  #define VALUE_OF_BYTE_SWAP_IF_BIG_ENDIAN(x) terark::byte_swap(x)
 #else
 	#error "must define BOOST_LITTLE_ENDIAN or BOOST_BIG_ENDIAN"
 #endif
