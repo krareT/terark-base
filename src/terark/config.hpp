@@ -118,6 +118,8 @@
   #define no_break_fallthrough  /* fall through */
 #endif
 
+#define TERARK_UNUSED_VAR(x) (void)(x)
+
 #endif // __terark_config_h__
 
 

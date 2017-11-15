@@ -281,7 +281,7 @@ struct node_layout<Data, Link, FastCopy, ValueInline>
 	void reserve(size_t old_size, size_t new_capacity) {
 		typedef ValueInline::Node<Data, Link> Node;
 		assert(old_size < new_capacity);
-		(void)old_size; // unused
+		TERARK_UNUSED_VAR(old_size);
 		Node* pn = (Node*)realloc(this->aNode, sizeof(Node)*new_capacity);
 		if (NULL == pn) throw std::bad_alloc();
 		this->aNode = pn;
@@ -300,7 +300,7 @@ struct node_layout<Data, Link, FastCopy, ValueOut>
 {
 	void reserve(size_t old_size, size_t new_capacity) {
 		assert(old_size < new_capacity);
-		(void)old_size; // unused
+		TERARK_UNUSED_VAR(old_size);
 		Data* d = (Data*)realloc(this->aData, sizeof(Data)*new_capacity);
 		if (NULL == d) throw std::bad_alloc();
 		this->aData = d;

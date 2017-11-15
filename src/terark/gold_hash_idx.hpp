@@ -94,7 +94,7 @@ public:
 
 	bool is_deleted(size_t idx) const {
 		const size_t nElem = m_link_store.size();
-		assert(idx < nElem); (void)nElem;
+		assert(idx < nElem); TERARK_UNUSED_VAR(nElem);
 		return delmark == m_link_store.link(idx);
 	}
 

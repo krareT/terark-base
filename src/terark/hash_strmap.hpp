@@ -1941,7 +1941,7 @@ private:
 		return index;
 	}
 	void sort_by_key_prefix_o(sort_by_index_no, bool DoRearrange) {
-		assert(DoRearrange); (void)DoRearrange;
+		assert(DoRearrange); TERARK_UNUSED_VAR(DoRearrange);
 		NodeWithPrefix* pnp;
 		Node* pn;
 		if (boost::is_same<CopyStrategy, FastCopy>::value) {

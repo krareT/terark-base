@@ -648,7 +648,7 @@ void PipelineProcessor::start()
 		m_is_mutex_owner = true;
 	}
 	int plgen = -1, plkeep = -1, nth = 0;
-	(void)plgen; // depress warning
+	TERARK_UNUSED_VAR(plgen);
 	for (PipelineStage* s = m_head->m_next; s != m_head; s = s->m_next)
 	{
 		if (PipelineStage::ple_generate == s->m_pl_enum)

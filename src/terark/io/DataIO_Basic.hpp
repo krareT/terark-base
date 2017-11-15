@@ -223,7 +223,7 @@ struct DataIO_is_realdump
 		check_member_order(x, ::boost::mpl::bool_<MembersDumpable && DataIO_is_dump_by_sizeof(DataIO, T)>());
 		return ret_t(address, &x);
 #else
-		(void)(x); // use x
+		TERARK_UNUSED_VAR(x);
 		return ret_t(NULL);
 #endif
 	}
