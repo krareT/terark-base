@@ -54,6 +54,7 @@
 #  define terark_no_return    __attribute__((noreturn))
 #  define terark_warn_unused_result  __attribute__((warn_unused_result))
 #  define flatten_inline __attribute__((flatten))
+#  define terark_used_static_obj __attribute__((used))
 
 #else
 
@@ -82,6 +83,10 @@
 
 #if !defined(terark_no_alias)
 #  define terark_no_alias
+#endif
+
+#if !defined(terark_used_static_obj)
+#  define terark_used_static_obj volatile
 #endif
 
 /* The ISO C99 standard specifies that in C++ implementations these
