@@ -473,9 +473,10 @@ public:
 	static
 	Uint s_get_uint(const Uint* base, size_t bitpos, size_t width) {
 		const Uint UintBits = Uint(sizeof(Uint) * 8);
+		assert(width <= UintBits);
 		const Uint* p = base + bitpos / UintBits;
 		size_t offset = bitpos % UintBits;
-		Uint mask = ~(Uint(-1) << width);
+		Uint mask = width < UintBits ? ~(Uint(-1) << width) : Uint(-1);
 		Uint low  = p[0] >> offset;
 		if (offset + width <= UintBits)
 			return mask & low;

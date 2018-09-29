@@ -16,12 +16,27 @@
 #include <boost/type_traits.hpp>
 #include <boost/static_assert.hpp>
 #include <boost/mpl/bool.hpp>
+#include <boost/mpl/if.hpp>
 #include <boost/utility.hpp>
 
 #include <terark/util/autofree.hpp>
 #include "config.hpp"
 
 namespace terark {
+
+    template<class T>
+    struct ParamPassType {
+        static const bool is_pass_by_value =
+                sizeof(T) <= sizeof(void*)
+            && (sizeof(T) & (sizeof(T)-1 )) == 0 // power of 2
+            && boost::has_trivial_copy<T>::value
+            && boost::has_trivial_copy_constructor<T>::value
+            && boost::has_trivial_destructor<T>::value
+        ;
+        typedef typename boost::mpl::if_c<is_pass_by_value,
+            const T, const T&>::type type;
+    };
+
 #if (defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L || \
 	 defined(_MSC_VER) && _MSC_VER >= 1700) && 0
 	template <typename T>
@@ -66,6 +81,24 @@ namespace terark {
 #else
 	#define STDEXT_destroy_range std::_Destroy
 #endif
+
+template<class ForwardIt, class Size>
+ForwardIt
+always_uninitialized_default_construct_n(ForwardIt first, Size n) {
+    using T = typename std::iterator_traits<ForwardIt>::value_type;
+    ForwardIt current = first;
+    try {
+        for (; n > 0 ; (void) ++current, --n) {
+            ::new (static_cast<void*>(std::addressof(*current))) T ();
+            // ------------------------------- init primitives  ---^^
+            // std::uninitialized_default_construct_n will not init primitives
+        }
+        return current;
+    }  catch (...) {
+        STDEXT_destroy_range(first, current);
+        throw;
+    }
+}
 
 template<class T>
 inline bool is_object_overlap(const T* x, const T* y) {
@@ -166,6 +199,7 @@ public:
     typedef T& reference;
     typedef const T* const_iterator;
     typedef const T& const_reference;
+    typedef typename ParamPassType<T>::type param_type;
 
     typedef std::reverse_iterator<T*> reverse_iterator;
     typedef std::reverse_iterator<const T*> const_reverse_iterator;
@@ -196,10 +230,22 @@ public:
         n = c = 0;
     }
 
-    explicit valvec(size_t sz, const T& val = T()) {
+    valvec(size_t sz, param_type val) {
         if (sz) {
 			AutoMemory tmp(sz);
             std::uninitialized_fill_n(tmp.p, sz, val);
+			p = tmp.p;
+			n = c = sz;
+			tmp.p = NULL;
+        } else {
+            p = NULL;
+            n = c = 0;
+        }
+    }
+    explicit valvec(size_t sz) {
+        if (sz) {
+			AutoMemory tmp(sz);
+            always_uninitialized_default_construct_n(tmp.p, sz);
 			p = tmp.p;
 			n = c = sz;
 			tmp.p = NULL;
@@ -285,11 +331,11 @@ public:
 
     ~valvec() { clear(); }
 
-    void fill(const T& x) {
+    void fill(param_type x) {
         std::fill_n(p, n, x);
     }
 
-    void fill(size_t pos, size_t cnt, const T& x) {
+    void fill(size_t pos, size_t cnt, param_type x) {
     	assert(pos <= n);
     	assert(pos + cnt <= n);
     	std::fill_n(p + pos, cnt, x);
@@ -343,6 +389,9 @@ public:
 	const T* data() const { return p; }
 	      T* data()       { return p; }
 
+	const T* finish() const { return p + c; }
+	      T* finish()       { return p + c; }
+
     bool  empty() const { return 0 == n; }
     size_t size() const { return n; }
     size_t capacity() const { return c; }
@@ -355,6 +404,12 @@ public:
     void reserve(size_t newcap) {
         if (newcap <= c)
             return; // nothing to do
+        reserve_slow(newcap);
+    }
+
+    terark_no_inline
+    void reserve_slow(size_t newcap) {
+        assert(newcap > c);
         T* q = (T*)realloc(p, sizeof(T) * newcap);
         if (NULL == q) throw std::bad_alloc();
         p = q;
@@ -366,6 +421,11 @@ public:
             // nothing to do
             return;
         }
+        ensure_capacity_slow(min_cap);
+    }
+    terark_no_inline
+    void ensure_capacity_slow(size_t min_cap) {
+        assert(min_cap > c);
         if (min_cap < 2 * c)
             min_cap = 2 * c;
         T* q = (T*)realloc(p, sizeof(T) * min_cap);
@@ -379,22 +439,27 @@ public:
 			// nothing to do
 			return;
 		}
-		if (max_cap < min_cap) {
-			max_cap = min_cap;
-		}
-		size_t cur_cap = max_cap;
-		for (;;) {
-			T* q = (T*)realloc(p, sizeof(T) * cur_cap);
-			if (q) {
-				p = q;
-				c = cur_cap;
-				return;
-			}
-			if (cur_cap == min_cap) {
-				throw std::bad_alloc();
-			}
-			cur_cap = min_cap + (cur_cap - min_cap) / 2;
-		}
+        try_capacity_slow(min_cap, max_cap);
+    }
+    terark_no_inline
+    void try_capacity_slow(size_t min_cap, size_t max_cap) {
+        assert(min_cap > c);
+        if (max_cap < min_cap) {
+            max_cap = min_cap;
+        }
+        size_t cur_cap = max_cap;
+        for (;;) {
+            T* q = (T*)realloc(p, sizeof(T) * cur_cap);
+            if (q) {
+                p = q;
+                c = cur_cap;
+                return;
+            }
+            if (cur_cap == min_cap) {
+                throw std::bad_alloc();
+            }
+            cur_cap = min_cap + (cur_cap - min_cap) / 2;
+        }
     }
 
     T& ensure_get(size_t i) {
@@ -404,7 +469,7 @@ public:
 			return *grow(1);
     }
 
-	T& ensure_set(size_t i, const T& x) {
+	T& ensure_set(size_t i, param_type x) {
 		if (i >= n) {
 			resize(i+1);
 		}
@@ -455,19 +520,47 @@ public:
 		}
 	}
 
-    void resize(size_t newsize, const T& val = T()) {
-        if (newsize == n)
+    void resize(size_t newsize, param_type val) {
+        size_t oldsize = n;
+        if (newsize == oldsize)
             return; // nothing to do
-        if (newsize < n)
-			STDEXT_destroy_range(p + newsize, p + n);
-        else {
-            ensure_capacity(newsize);
-            std::uninitialized_fill_n(p+n, newsize-n, val);
+        if (newsize < oldsize) {
+			STDEXT_destroy_range(p + newsize, p + oldsize);
+            n = newsize;
         }
+        else {
+            resize_slow(newsize, val);
+        }
+    }
+    terark_no_inline
+    void resize_slow(size_t newsize, param_type val) {
+        assert(newsize > n);
+        ensure_capacity(newsize);
+        std::uninitialized_fill_n(p+n, newsize-n, val);
         n = newsize;
     }
 
-	void resize_fill(size_t newsize, const T& val = T()) {
+    void resize(size_t newsize) {
+        size_t oldsize = n;
+        if (newsize == oldsize)
+            return; // nothing to do
+        if (newsize < oldsize) {
+			STDEXT_destroy_range(p + newsize, p + oldsize);
+            n = newsize;
+        }
+        else {
+            resize_slow(newsize);
+        }
+    }
+    terark_no_inline
+    void resize_slow(size_t newsize) {
+        assert(newsize > n);
+        ensure_capacity(newsize);
+        always_uninitialized_default_construct_n(p+n, newsize-n);
+        n = newsize;
+    }
+
+	void resize_fill(size_t newsize, param_type val = T()) {
         if (newsize <= n) {
 			STDEXT_destroy_range(p + newsize, p + n);
 			std::fill_n(p, newsize, val);
@@ -503,7 +596,8 @@ public:
 	void trim(T* from) {
 		assert(from >= p);
 		assert(from <= p + n);
-		STDEXT_destroy_range(from, p + n);
+		if (!boost::has_trivial_destructor<T>::value)
+    		STDEXT_destroy_range(from, p + n);
 		n = from - p;
 	}
 
@@ -513,17 +607,18 @@ public:
 	/// vec.trim(size_t(0));
 	void trim(size_t from) {
 		assert(from <= n);
-		STDEXT_destroy_range(p + from, p + n);
+		if (!boost::has_trivial_destructor<T>::value)
+    		STDEXT_destroy_range(p + from, p + n);
 		n = from;
 	}
 
-	void insert(const T* pos, const T& x) {
+	void insert(const T* pos, param_type x) {
 		assert(pos <= p + n);
 		assert(pos >= p);
 		insert(pos-p, x);
 	}
 
-	void insert(size_t pos, const T& x) {
+	void insert(size_t pos, param_type x) {
 		assert(pos <= n);
 		if (pos > n) {
 			throw std::out_of_range("valvec::insert");
@@ -548,36 +643,50 @@ public:
 		n += count;
 	}
 
-	void push_back() {
-		assert(n <= c);
-		if (terark_unlikely(n == c)) {
-			ensure_capacity(n + 1);
-		}
-		new(p + n)T(); // default cons
-		++n;
-	}
-	void push_back(const T& x) {
-		if (terark_likely(n < c)) {
-			new(p+n)T(x); // copy cons
-			++n;
-		} else {
-			push_back_slow_path(x);
-		}
-	}
-	void push_back_slow_path(const T& x) {
-		if (&x >= p && &x < p+n) {
-			size_t idx = &x - p;
-			ensure_capacity(n+1);
-			new(p+n)T(p[idx]); // copy cons
-		}
-		else {
-			ensure_capacity(n+1);
-			new(p+n)T(x); // copy cons
-		}
-		++n;
-	}
+    void push_back() {
+        size_t oldsize = n;
+        assert(oldsize <= c);
+        if (terark_unlikely(oldsize < c)) {
+            new(p + oldsize)T(); // default cons
+            n = oldsize + 1;
+        } else {
+            push_back_slow();
+        }
+    }
+    terark_no_inline
+    void push_back_slow() {
+        size_t oldsize = n;
+        ensure_capacity(oldsize + 1);
+        new(p + oldsize)T(); // default cons
+        n = oldsize + 1;
+    }
 
-	void append(const T& x) { push_back(x); } // alias for push_back
+	void push_back(param_type x) {
+        size_t oldsize = n;
+		if (terark_likely(oldsize < c)) {
+			new(p+oldsize)T(x); // copy cons
+			n = oldsize + 1;
+		} else {
+			push_back_slow(x);
+		}
+	}
+    terark_no_inline
+    void push_back_slow(param_type x) {
+        size_t oldsize = n;
+        if (!ParamPassType<T>::is_pass_by_value &&
+                &x >= p && &x < p + oldsize) {
+            size_t idx = &x - p;
+            ensure_capacity(oldsize + 1);
+            new(p + oldsize)T(p[idx]); // copy cons
+        }
+        else {
+            ensure_capacity(oldsize + 1);
+            new(p + oldsize)T(x); // copy cons
+        }
+        n = oldsize + 1;
+    }
+
+	void append(param_type x) { push_back(x); } // alias for push_back
 	template<class Iterator>
 	void append(Iterator first, ptrdiff_t len) {
 		assert(len >= 0);
@@ -604,39 +713,59 @@ public:
 		append(cont.begin(), cont.end());
 	}
 
-	void push_n(size_t cnt, const T& val) {
-		ensure_capacity(n + cnt);
-		for (size_t i = 0; i < cnt; ++i) {
-			unchecked_push_back(val);
-		}
-	}
+    void push_n(size_t cnt, param_type val) {
+        if (boost::has_trivial_copy<T>::value) {
+            std::uninitialized_fill_n(grow_no_init(cnt), cnt, val);
+        }
+        else {
+            ensure_capacity(n + cnt);
+            for (size_t i = 0; i < cnt; ++i) {
+                unchecked_push_back(val);
+            }
+        }
+    }
 
-	void grow_capacity(size_t cnt) {
-		reserve(n + cnt);
+	T* grow_capacity(size_t cnt) {
+		size_t oldsize = n;
+		ensure_capacity(n + cnt);
+		return p + oldsize;
 	}
 	T* grow_no_init(size_t cnt) {
 		size_t oldsize = n;
-		resize_no_init(n + cnt);
+		resize_no_init(oldsize + cnt);
+		return p + oldsize;
+	}
+
+	T* grow(size_t cnt, param_type x) {
+		size_t oldsize = n;
+		resize(oldsize + cnt, x);
 		return p + oldsize;
 	}
 
 	T* grow(size_t cnt) {
 		size_t oldsize = n;
-		resize(n + cnt);
+		resize(oldsize + cnt);
 		return p + oldsize;
 	}
 
-    void unchecked_push_back() { unchecked_push_back(T()); }
-    void unchecked_push_back(const T& x) {
-		assert(n < c);
-        new(p+n)T(x); // copy cons
-        ++n;
+    void unchecked_push_back() {
+		size_t oldsize = n;
+		assert(oldsize < c);
+        new(p+oldsize)T(); // default cons
+        n = oldsize + 1;
+    }
+    void unchecked_push_back(param_type x) {
+		size_t oldsize = n;
+		assert(oldsize < c);
+        new(p+oldsize)T(x); // copy cons
+        n = oldsize + 1;
     }
 
     void pop_back() {
 		assert(n > 0);
-        p[n-1].~T();
-        --n;
+        size_t newsize = n-1;
+        p[newsize].~T();
+        n = newsize;
     }
 
 // use valvec as stack ...
@@ -648,9 +777,9 @@ public:
 	}
     void pop() { pop_back(); }
     void push() { push_back(); } // alias for push_back
-    void push(const T& x) { push_back(x); } // alias for push_back
+    void push(param_type x) { push_back(x); } // alias for push_back
 
-	const T& top() const {
+	param_type top() const {
         if (0 == n)
             throw std::logic_error("valvec::top() const, valec is empty");
 		return p[n-1];
@@ -673,12 +802,12 @@ public:
 		return x;
 	}
 
-    void unchecked_push() { unchecked_push_back(T()); }
-    void unchecked_push(const T& x) { unchecked_push_back(x); }
+    void unchecked_push() { unchecked_push_back(); }
+    void unchecked_push(param_type x) { unchecked_push_back(x); }
 
 // end use valvec as stack
 
-    const T& operator[](size_t i) const {
+    param_type operator[](size_t i) const {
         assert(i < n);
         return p[i];
     }
@@ -688,7 +817,7 @@ public:
         return p[i];
     }
 
-    const T& at(size_t i) const {
+    param_type at(size_t i) const {
         if (i >= n) throw std::out_of_range("valvec::at");
         return p[i];
     }
@@ -698,12 +827,12 @@ public:
         return p[i];
     }
 
-	void set(size_t i, const T& val) {
+	void set(size_t i, param_type val) {
 		assert(i < n);
 		p[i] = val;
 	}
 
-    const T& front() const {
+    param_type front() const {
         assert(n);
         assert(p);
         return p[0];
@@ -714,7 +843,7 @@ public:
         return p[0];
     }
 
-    const T& back() const {
+    param_type back() const {
         assert(n);
         assert(p);
         return p[n-1];
@@ -729,12 +858,12 @@ public:
         assert(d <= n);
         return p[n-d];
     }
-    const T& ende(size_t d) const {
+    param_type ende(size_t d) const {
         assert(d <= n);
         return p[n-d];
     }
 
-    void operator+=(const T& x) {
+    void operator+=(param_type x) {
         push_back(x);
     }
 
@@ -753,37 +882,6 @@ public:
 
 #if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103 \
  || defined(_MSC_VER) && _MSC_VER >= 1700
-	void push(T&& x) { push_back(std::forward<T>(x)); }
-    void push_back(T&& x) {
-		if (n < c) {
-			new(p+n)T(std::forward<T>(x));
-			++n;
-		} else {
-			push_back_slow_path(std::forward<T>(x));
-		}
-    }
-	void push_back_slow_path(T&& x) {
-		assert(n == c);
-		if (&x >= p && &x < p+n) {
-			size_t idx = &x - p;
-			ensure_capacity(n+1);
-			new(p+n)T(std::forward<T>(p[idx]));
-		}
-		else {
-			ensure_capacity(n+1);
-			new(p+n)T(std::forward<T>(x));
-		}
-		++n;
-	}
-
-	void append(T&& x) { push_back(std::forward<T>(x)); }
-
-    void unchecked_push(T&& x) { unchecked_push_back(std::forward<T>(x)); }
-    void unchecked_push_back(T&& x) {
-		assert(n < c);
-        new(p+n)T(std::forward<T>(x));
-        ++n;
-    }
 
 	// same as push_back()
 	void emplace_back() { push_back(); }
@@ -802,15 +900,18 @@ public:
 #else
 	template<class... Args>
 	void emplace_back(Args&&... args) {
-        if (n < c) {
-			new(p+n)T(std::forward<Args>(args)...);
-			++n;
+		size_t oldsize = n;
+		assert(oldsize <= c);
+        if (oldsize < c) {
+			new(p+oldsize)T(std::forward<Args>(args)...);
+			n = oldsize + 1;
 		} else {
-			emplace_back_slow_path(std::forward<Args>(args)...);
+			emplace_back_slow(std::forward<Args>(args)...);
 		}
 	}
 	template<class... Args>
-	void emplace_back_slow_path(Args&&... args) {
+    terark_no_inline
+	void emplace_back_slow(Args&&... args) {
 		T val(std::forward<Args>(args)...);
         ensure_capacity(n+1);
 		new(p+n)T(std::move(val));
@@ -818,9 +919,10 @@ public:
 	}
 	template<class... Args>
 	void unchecked_emplace_back(Args&&... args) {
-		assert(n < c);
-		new(p+n)T(std::forward<Args>(args)...);
-		++n;
+		size_t oldsize = n;
+		assert(oldsize < c);
+		new(p+oldsize)T(std::forward<Args>(args)...);
+		n = oldsize + 1;
 	}
 #endif
 
@@ -836,7 +938,7 @@ public:
 			new(p+n)T(a1);
 			++n;
 		} else {
-			emplace_back_slow_path(a1);
+			emplace_back_slow(a1);
 		}
 	}
 	template<class A1, class A2>
@@ -845,7 +947,7 @@ public:
 			new(p+n)T(a1, a2);
 			++n;
 		} else {
-			emplace_back_slow_path(a1, a2);
+			emplace_back_slow(a1, a2);
 		}
 	}
 	template<class A1, class A2, class A3>
@@ -854,7 +956,7 @@ public:
 			new(p+n)T(a1, a2, a3);
 			++n;
 		} else {
-			emplace_back_slow_path(a1, a2, a3);
+			emplace_back_slow(a1, a2, a3);
 		}
 	}
 	template<class A1, class A2, class A3, class A4>
@@ -863,33 +965,33 @@ public:
 			new(p+n)T(a1, a2, a3, a4);
 			++n;
 		} else {
-			emplace_back_slow_path(a1, a2, a3, a4);
+			emplace_back_slow(a1, a2, a3, a4);
 		}
 	}
 
 	template<class A1>
-	void emplace_back_slow_path(const A1& a1) {
+	void emplace_back_slow(const A1& a1) {
 		T val(a1);
         ensure_capacity(n+1);
 		new(p+n)T(val);
 		++n;
 	}
 	template<class A1, class A2>
-	void emplace_back_slow_path(const A1& a1, const A2& a2) {
+	void emplace_back_slow(const A1& a1, const A2& a2) {
 		T val(a1, a2);
         ensure_capacity(n+1);
 		new(p+n)T(val);
 		++n;
 	}
 	template<class A1, class A2, class A3>
-	void emplace_back_slow_path(const A1& a1, const A2& a2, const A3& a3) {
+	void emplace_back_slow(const A1& a1, const A2& a2, const A3& a3) {
 		T val(a1, a2, a3);
         ensure_capacity(n+1);
 		new(p+n)T(val);
 		++n;
 	}
 	template<class A1, class A2, class A3, class A4>
-	void emplace_back_slow_path(const A1& a1, const A2& a2, const A3& a3, const A4& a4) {
+	void emplace_back_slow(const A1& a1, const A2& a2, const A3& a3, const A4& a4) {
 		T val(a1, a2, a3, a4);
         ensure_capacity(n+1);
 		new(p+n)T(val);
@@ -936,7 +1038,7 @@ public:
 	std::pair<T*, T*> range() { return std::make_pair(p, p+n); }
 	std::pair<const T*, const T*> range() const { return std::make_pair(p, p+n); }
 
-	const T& get_2d(size_t colsize, size_t row, size_t col) const {
+	param_type get_2d(size_t colsize, size_t row, size_t col) const {
 		size_t idx = row * colsize + col;
 		assert(idx < n);
 		return p[idx];
@@ -955,6 +1057,11 @@ public:
 	void risk_set_data(T* data) { p = data; }
 	void risk_set_size(size_t size) { this->n = size; }
 	void risk_set_capacity(size_t capa) { this->c = capa; }
+    void risk_set_end(T* endp) {
+        assert(size_t(endp - p) <= c);
+        assert(size_t(endp - p) >= 0);
+        n = endp - p;
+    }
 
 	T* risk_release_ownership() {
 	//	BOOST_STATIC_ASSERT(boost::has_trivial_destructor<T>::value);

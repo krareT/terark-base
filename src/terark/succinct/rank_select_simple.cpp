@@ -55,11 +55,13 @@ rank_select_simple& rank_select_simple::operator=(const rank_select_simple& y) {
 
 #if defined(HSM_HAS_MOVE)
 rank_select_simple::rank_select_simple(rank_select_simple&& y) noexcept {
+    assert(this != &y);
     memcpy(this, &y, sizeof(*this));
     y.risk_release_ownership();
 }
 rank_select_simple&
 rank_select_simple::operator=(rank_select_simple&& y) noexcept {
+    assert(this != &y);
     if (m_words)
         ::free(m_words);
     memcpy(this, &y, sizeof(*this));
@@ -144,7 +146,7 @@ size_t rank_select_simple::mem_size() const {
 }
 
 size_t rank_select_simple::rank1(size_t bitpos) const {
-    assert(bitpos < this->size());
+    assert(bitpos <= this->size()); // bitpos can be this->size()
     size_t line_wordpos = (bitpos & ~(LineBits - 1)) / WordBits;
     size_t line_word_idxupp = bitpos / WordBits;
     size_t rank = m_rank_cache[bitpos / LineBits];

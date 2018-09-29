@@ -200,10 +200,10 @@ DataIO_IsDump_TypeTrue2(PortableNoVarInt, var_int64_t)
 	}													\
 	template<class DataIO>                              \
 	Friend terark::ByteSwap_false						\
-	Deduce_DataIO_need_bswap(DataIO*, Class&);			\
+	Deduce_DataIO_need_bswap(DataIO*, Class*);			\
 	template<class DataIO>                              \
 	Friend												\
-	terark::IsDump_true Deduce_DataIO_is_dump(DataIO*, Class&);
+	terark::IsDump_true Deduce_DataIO_is_dump(DataIO*, Class*);
 
 
 //! define an input/output object of stream

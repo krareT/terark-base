@@ -55,11 +55,13 @@
 #  define terark_warn_unused_result  __attribute__((warn_unused_result))
 #  define flatten_inline __attribute__((flatten))
 #  define terark_used_static_obj __attribute__((used))
+#  define terark_no_inline     __attribute__((noinline))
 
 #else
 
 #if defined(_MSC_VER) && _MSC_VER >= 1310
 #  define terark_no_return __declspec(noreturn)
+#  define terark_no_inline __declspec(noinline)
 #endif
 
 #if defined(_MSC_VER) && _MSC_VER >= 1400
@@ -79,6 +81,10 @@
 
 #if !defined(terark_no_return)
 #  define terark_no_return
+#endif
+
+#if !defined(terark_no_inline)
+#  define terark_no_inline
 #endif
 
 #if !defined(terark_no_alias)
@@ -124,6 +130,8 @@
 #endif
 
 #define TERARK_UNUSED_VAR(x) (void)(x)
+
+extern bool g_Terark_hasValgrind;
 
 #endif // __terark_config_h__
 

@@ -563,6 +563,14 @@ void SortableStrVec::make_ascending_offset() {
 	m_strpool.swap(tmp);
 }
 
+void SortableStrVec::make_ascending_seq_id() {
+	SEntry* a = m_index.data();
+	size_t  n = m_index.size();
+	for (size_t i = 0; i < n; ++i) {
+		a[i].seq_id = i;
+	}
+}
+
 size_t SortableStrVec::lower_bound_by_offset(size_t offset) const {
 	SEntry const* a = m_index.data();
 	size_t lo = 0, hi = m_index.size();
@@ -610,12 +618,84 @@ size_t SortableStrVec::upper_bound_at_pos(size_t lo, size_t hi, size_t pos, byte
 	return lo;
 }
 
-size_t SortableStrVec::lower_bound(fstring key) const {
-	return lower_bound_0<const SortableStrVec&>(*this, m_index.size(), key);
+static HSM_FORCE_INLINE
+bool str_less(const void* xp, size_t xn, const void* yp, size_t yn) {
+	ptrdiff_t n = std::min(xn, yn);
+	int ret = memcmp(xp, yp, n);
+	if (ret)
+		return ret < 0;
+	else
+		return xn < yn;
 }
 
+flatten_inline
+size_t SortableStrVec::lower_bound(fstring key) const {
+    const SEntry* index = m_index.data();
+    const byte_t* strbase = m_strpool.data();
+    size_t lo = 0, hi = m_index.size();
+    while (lo < hi) {
+        size_t mid = (lo + hi) / 2;
+        const byte_t* strMid = index[mid].offset + strbase;
+        const size_t  lenMid = index[mid].length;
+        if (str_less(strMid, lenMid, key.p, key.n))
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+	return lo;
+}
+
+flatten_inline
 size_t SortableStrVec::upper_bound(fstring key) const {
-	return upper_bound_0<const SortableStrVec&>(*this, m_index.size(), key);
+    const SEntry* index = m_index.data();
+    const byte_t* strbase = m_strpool.data();
+    size_t lo = 0, hi = m_index.size();
+    while (lo < hi) {
+        size_t mid = (lo + hi) / 2;
+        const byte_t* strMid = index[mid].offset + strbase;
+        const size_t  lenMid = index[mid].length;
+        if (!str_less(key.p, key.n, strMid, lenMid))
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+	return lo;
+}
+
+flatten_inline
+size_t SortableStrVec::find(fstring key) const {
+    const SEntry* index = m_index.data();
+    const byte_t* strbase = m_strpool.data();
+    size_t lo = 0, hi = m_index.size();
+    while (lo < hi) {
+        size_t mid = (lo + hi) / 2;
+        const byte_t* strMid = index[mid].offset + strbase;
+        const size_t  lenMid = index[mid].length;
+        if (str_less(strMid, lenMid, key.p, key.n))
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    size_t num = m_index.size();
+    if (lo < num) {
+        const byte_t* strLo = index[lo].offset + strbase;
+        const size_t  lenLo = index[lo].length;
+        if (lenLo == size_t(key.n) && memcmp(strLo, key.p, lenLo) == 0)
+            return lo;
+    }
+	return num;
+}
+
+size_t SortableStrVec::max_strlen() const {
+    const SEntry* index = m_index.data();
+    const size_t  count = m_index.size();
+    size_t maxlen = 0;
+    for(size_t i = 0; i < count; ++i) {
+        size_t x = index[i].length;
+        if (maxlen < x)
+            maxlen = x;
+    }
+    return maxlen;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -962,6 +1042,22 @@ size_t SortedStrVec::lower_bound(fstring key) const {
 
 size_t SortedStrVec::upper_bound(fstring key) const {
     return upper_bound_0<const SortedStrVec&>(*this, m_offsets.size()-1, key);
+}
+
+size_t SortedStrVec::max_strlen() const {
+    const auto data = m_offsets.data();
+    const auto size = m_offsets.size();
+    const auto bits = m_offsets.uintbits();
+    const auto mask = m_offsets.uintmask();
+    size_t maxlen = 0;
+    for(size_t i = 1; i < size; ++i) {
+        size_t s = m_offsets.fast_get(data, bits, mask, i-1);
+        size_t t = m_offsets.fast_get(data, bits, mask, i-0);
+        size_t x = t - s;
+        if (maxlen < x)
+            maxlen = x;
+    }
+    return maxlen;
 }
 
 } // namespace terark

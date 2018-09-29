@@ -1,8 +1,7 @@
 #ifndef __terark_int_vector_hpp__
 #define __terark_int_vector_hpp__
 
-#include "valvec.hpp"
-#include "stdtypes.hpp"
+#include "bitmap.hpp"
 #include <terark/util/throw.hpp>
 
 namespace terark {
@@ -10,7 +9,7 @@ namespace terark {
 class OutputBuffer;
 
 // memory layout is binary compatible to SortedUintVec
-class TERARK_DLL_EXPORT UintVecMin0 {
+class TERARK_DLL_EXPORT UintVecMin0Base {
 protected:
 	valvec<byte> m_data;
 	size_t m_bits;
@@ -25,13 +24,13 @@ protected:
 
 public:
 	template<class Uint>
-	UintVecMin0(size_t num, Uint max_val) {
+	UintVecMin0Base(size_t num, Uint max_val) {
 		m_bits = 0;
 		m_mask = 0;
 		m_size = 0;
 		resize_with_wire_max_val(num, max_val);
 	}
-	UintVecMin0() { nullize(); }
+	UintVecMin0Base() { nullize(); }
 
 	void clear() { m_data.clear(); nullize(); }
 
@@ -40,7 +39,7 @@ public:
         m_data.shrink_to_fit();
     }
 
-	void swap(UintVecMin0& y) {
+	void swap(UintVecMin0Base& y) {
 		m_data.swap(y.m_data);
 		std::swap(m_bits, y.m_bits);
 		std::swap(m_mask, y.m_mask);
@@ -54,15 +53,6 @@ public:
 
 	void risk_set_data(byte* Data, size_t num, size_t bits) {
 		assert(m_bits <= 64);
-#if TERARK_WORD_BITS == 64
-		// allowing bits > 58 will incur performance punish in get/set.
-		// 58 bit can span 9 bytes, but this only happens when start bit index
-		// is odd, 58 is not odd, so 58 is safe.
-		if (bits > 58) {
-			assert(false);
-			THROW_STD(logic_error, "bits=%zd is too large(max_allowed=58)", bits);
-		}
-#endif
 		assert(bits <= sizeof(size_t) * 8);
 		size_t Bytes = 0==num ? 0 : (bits*num + 7) / 8 + sizeof(size_t)-1 + 15;
 		Bytes &= ~size_t(15); // align to 16
@@ -86,51 +76,13 @@ public:
 		m_size = newsize;
 	}
 
-	size_t back() const { assert(m_size > 0); return get(m_size-1); }
-	size_t operator[](size_t idx) const { return get(idx); }
-	size_t get(size_t idx) const {
-		assert(idx < m_size);
-		assert(m_bits <= 64);
-		return fast_get(m_data.data(), m_bits, m_mask, idx);
-	}
-	void get2(size_t idx, size_t aVals[2]) const {
-		const byte*  data = m_data.data();
-		const size_t bits = m_bits;
-		const size_t mask = m_mask;
-		assert(m_bits <= 64);
-		aVals[0] = fast_get(data, bits, mask, idx);
-		aVals[1] = fast_get(data, bits, mask, idx+1);
-	}
-	static
-	size_t fast_get(const byte* data, size_t bits, size_t mask, size_t idx) {
-		assert(bits <= 64);
-		size_t bit_idx = bits * idx;
-		size_t byte_idx = bit_idx / 8;
-		size_t val = unaligned_load<size_t>(data + byte_idx);
-		return (val >> bit_idx % 8) & mask;
-	}
-
 	void set_wire(size_t idx, size_t val) {
 		assert(idx < m_size);
 		assert(val <= m_mask);
 		assert(m_bits <= 64);
 		size_t bits = m_bits; // load member into a register
-		size_t mask = m_mask;
 		size_t bit_idx = bits * idx;
-		size_t byte_idx = bit_idx / 8;
-		size_t old_val = unaligned_load<size_t>(m_data.data() + byte_idx);
-		size_t new_val = (old_val & ~(mask << bit_idx%8)) | (val << bit_idx%8);
-	//	printf("%4zd %4zd %4zd %4zd\n", idx, val, bit_idx, byte_idx);
-		unaligned_save(m_data.data() + byte_idx, new_val);
-#if TERARK_WORD_BITS == 32
-		if (bit_idx % 8 + m_bits > 32) {
-			byte old_hival = m_data[byte_idx+4];
-		   	byte new_hival = 0
-			   	| (old_hival & ~((1 << (bit_idx % 8 + m_bits - 32)) - 1))
-				| (val >> (32 - bit_idx % 8));
-			m_data[byte_idx+4] = new_hival;
-		}
-#endif
+    febitvec::s_set_uint((size_t*)m_data.data(), bit_idx, bits, val);
 	}
 
 	template<class Uint>
@@ -144,14 +96,6 @@ public:
 
 	void resize_with_uintbits(size_t num, size_t bits) {
 		assert(m_bits <= 64);
-#if TERARK_WORD_BITS == 64
-		// allowing bits > 58 will incure performance punish in get/set.
-		// 58 bit can span 9 bytes, but this only happens when start bit index
-		// is odd, 58 is not odd, so 58 is safe.
-		if (bits > 58) {
-			THROW_STD(logic_error, "bits=%zu is too large(max=58)", bits);
-		}
-#endif
 		clear();
 		m_bits = bits;
 		m_mask = sizeof(size_t)*8 == bits ? size_t(-1) : (size_t(1)<<bits)-1;
@@ -232,6 +176,85 @@ public:
     static Builder* create_builder_by_max_value(size_t max_val, const char* fpath);
     static Builder* create_builder_by_uintbits(size_t uintbits, OutputBuffer* buffer);
     static Builder* create_builder_by_max_value(size_t max_val, OutputBuffer* buffer);
+};
+
+// Max uint bits is 58
+/*
+#if TERARK_WORD_BITS == 64
+// allowing bits > 58 will incure performance punish in get/set.
+// 58 bit can span 9 bytes, but this only happens when start bit index
+// is odd, 58 is not odd, so 58 is safe.
+#endif
+*/
+class UintVecMin0 : public UintVecMin0Base {
+public:
+  using UintVecMin0Base::UintVecMin0Base;
+  void risk_set_data(byte* Data, size_t num, size_t bits) {
+#if TERARK_WORD_BITS == 64
+    // allowing bits > 58 will incur performance punish in get/set.
+    // 58 bit can span 9 bytes, but this only happens when start bit index
+    // is odd, 58 is not odd, so 58 is safe.
+    if (bits > 58) {
+      assert(false);
+      THROW_STD(logic_error, "bits=%zd is too large(max_allowed=58)", bits);
+    }
+#endif
+    UintVecMin0Base::risk_set_data(Data, num, bits);
+  }
+  size_t get(size_t idx) const {
+    assert(idx < m_size);
+    assert(m_bits <= 58);
+    return fast_get(m_data.data(), m_bits, m_mask, idx);
+  }
+  void get2(size_t idx, size_t aVals[2]) const {
+    const byte*  data = m_data.data();
+    const size_t bits = m_bits;
+    const size_t mask = m_mask;
+    assert(m_bits <= 58);
+    aVals[0] = fast_get(data, bits, mask, idx);
+    aVals[1] = fast_get(data, bits, mask, idx+1);
+  }
+  static
+  size_t fast_get(const byte* data, size_t bits, size_t mask, size_t idx) {
+    assert(bits <= 58);
+    size_t bit_idx = bits * idx;
+    size_t byte_idx = bit_idx / 8;
+    size_t val = unaligned_load<size_t>(data + byte_idx);
+    return (val >> bit_idx % 8) & mask;
+  }
+  size_t back() const { assert(m_size > 0); return get(m_size-1); }
+  size_t operator[](size_t idx) const { return get(idx); }
+};
+
+// Max uint bits is 64
+class BigUintVecMin0 : public UintVecMin0Base {
+public:
+  using UintVecMin0Base::UintVecMin0Base;
+  size_t get(size_t idx) const {
+    assert(idx < m_size);
+    assert(m_bits <= 64);
+    size_t bits = m_bits;
+    size_t pos = bits * idx;
+    size_t val = febitvec::s_get_uint((const size_t*)m_data.data(), pos, bits);
+    assert(val <= m_mask);
+    return val;
+  }
+  void get2(size_t idx, size_t aVals[2]) const {
+    const size_t* data = (const size_t*)m_data.data();
+    const size_t  bits = m_bits;
+    const size_t  pos = bits * idx;
+    assert(bits <= 64);
+    aVals[0] = febitvec::s_get_uint(data, pos, bits);
+    aVals[1] = febitvec::s_get_uint(data, pos + bits, bits);
+  }
+  static
+  size_t fast_get(const byte* data, size_t bits, size_t idx) {
+    assert(bits <= 64);
+    size_t bitpos = bits * idx;
+    return febitvec::s_get_uint((const size_t*)data, bitpos, bits);
+  }
+  size_t back() const { assert(m_size > 0); return get(m_size-1); }
+  size_t operator[](size_t idx) const { return get(idx); }
 };
 
 template<class Int>

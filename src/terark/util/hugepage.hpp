@@ -10,11 +10,12 @@
 
 namespace terark {
 
+static const size_t hugepage_size = size_t(2) << 20;
+
 template<class T>
 void use_hugepage_advise(valvec<T>* vec) {
 #if defined(_MSC_VER) || !defined(MADV_HUGEPAGE)
 #else
-	const size_t hugepage_size = size_t(2) << 20;
 	size_t nBytes = vec->used_mem_size();
 	T* amem = NULL;
 	int err = posix_memalign((void**)&amem, hugepage_size, nBytes);
@@ -39,16 +40,17 @@ void use_hugepage_advise(valvec<T>* vec) {
 template<class T>
 void use_hugepage_resize_no_init(valvec<T>* vec, size_t newsize) {
 #if defined(_MSC_VER) || !defined(MADV_HUGEPAGE)
-	vec->resize_no_init(newsize);
+	vec->reserve(newsize);
+	vec->risk_set_size(newsize);
 #else
-	const size_t hugepage_size = size_t(2) << 20;
 	size_t nBytes = sizeof(T)*newsize;
 	T* amem = NULL;
 	int err = posix_memalign((void**)&amem, hugepage_size, nBytes);
 	if (err) {
 		fprintf(stderr, "WARN: %s: posix_memalign(%zd, %zd) = %s\n",
 			BOOST_CURRENT_FUNCTION, hugepage_size, nBytes, strerror(err));
-		vec->resize_no_init(newsize);
+		vec->reserve(newsize);
+		vec->risk_set_size(newsize);
 		return;
 	}
 	size_t copySize = sizeof(T) * std::min(vec->size(), newsize);

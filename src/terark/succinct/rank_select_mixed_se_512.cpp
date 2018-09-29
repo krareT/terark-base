@@ -212,24 +212,32 @@ void rank_select_mixed_se_512::grow() {
     assert(std::max(m_size[0], m_size[1]) * 2 == m_capacity);
     assert((m_flags & (1 << 1)) == 0);
     assert((m_flags & (1 << 4)) == 0);
-	// size_t(WordBits) prevent debug link error
-    m_capacity = std::max(m_capacity, size_t(WordBits));
-    auto new_words = (bm_uint_t*)realloc(m_words, m_capacity / 8 * 2);
+    // size_t(WordBits) prevent debug link error
+    size_t newcapBits = 2 * std::max(m_capacity, size_t(WordBits));
+    bm_uint_t* new_words = (bm_uint_t*)realloc(m_words, newcapBits/8);
     if (NULL == new_words)
         throw std::bad_alloc();
+    if (g_Terark_hasValgrind) {
+        byte_t* q = (byte_t*)new_words;
+        memset(q + m_capacity/8, 0, (newcapBits - m_capacity)/8);
+    }
     m_words = new_words;
     m_capacity *= 2;
 }
 
-void rank_select_mixed_se_512::reserve(size_t capacity) {
-    assert(capacity == ((capacity + WordBits - 1) & ~(WordBits - 1)));
-    if (capacity <= m_capacity)
+void rank_select_mixed_se_512::reserve(size_t newcapBits) {
+    assert(align_up(newcapBits, WordBits) == newcapBits);
+    if (newcapBits <= m_capacity)
         return;
-    auto new_words = (bm_uint_t*)realloc(m_words, capacity / 8);
+    auto new_words = (bm_uint_t*)realloc(m_words, newcapBits / 8);
     if (NULL == new_words)
         throw std::bad_alloc();
+    if (g_Terark_hasValgrind) {
+        byte_t* q = (byte_t*)new_words;
+        memset(q + m_capacity/8, 0, (newcapBits - m_capacity)/8);
+    }
     m_words = new_words;
-    m_capacity = capacity;
+    m_capacity = newcapBits;
 }
 
 void rank_select_mixed_se_512::nullize_cache() {

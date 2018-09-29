@@ -112,8 +112,8 @@ public:
     }
     size_t num_words() const { return m_lines.size() * LineWords; }
 
-    bool isall0() const;
-    bool isall1() const;
+    bool isall0() const { return m_max_rank1 == 0; }
+    bool isall1() const { return m_max_rank0 == 0; }
 
     size_t popcnt() const;
     size_t popcnt(size_t startline, size_t lines) const;

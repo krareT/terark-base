@@ -30,7 +30,7 @@ public:
     void swap(rank_select_mixed_se_512&);
     const void* data() const;
     size_t mem_size() const;
-    
+
 protected:
     struct RankCacheMixed {
         uint32_t base[2];
@@ -50,7 +50,7 @@ protected:
         template<size_t dimensions> size_t get_base() const { return base[dimensions]; }
     };
     typedef bm_uint_t bldata_t;
-    
+
     static size_t fix_resize_size(size_t bits) {
         rank_select_check_overflow(bits, > , rank_select_mixed_se_512);
         return ((bits + WordBits - 1) & ~(WordBits - 1)) * 2;
@@ -62,7 +62,7 @@ protected:
 
     template<size_t dimensions> void bits_range_set0_dx(size_t i, size_t k);
     template<size_t dimensions> void bits_range_set1_dx(size_t i, size_t k);
-    
+
     template<size_t dimensions>
     void set_word_dx(size_t word_idx, bm_uint_t bits) {
         assert(word_idx < num_words_dx<dimensions>());
@@ -75,7 +75,7 @@ protected:
     }
     template<size_t dimensions>
     size_t num_words_dx() const { return (m_size[dimensions] + WordBits - 1) / WordBits; }
-    
+
     template<size_t dimensions>
     void push_back_dx(bool val) {
         rank_select_check_overflow(m_size[dimensions], >= , rank_select_mixed_se_512);
@@ -147,7 +147,7 @@ protected:
     uint32_t*  m_sel1_cache[2];
     size_t     m_max_rank0[2];
     size_t     m_max_rank1[2];
-    
+
     const RankCacheMixed* get_rank_cache_base() const { return m_rank_cache; }
 public:
     template<size_t dimensions>
@@ -168,7 +168,7 @@ public:
 template<size_t dimensions>
 inline size_t rank_select_mixed_se_512::
 rank0_dx(size_t bitpos) const {
-    assert(bitpos < m_size[dimensions]);
+    assert(bitpos <= m_size[dimensions]);
     return bitpos - rank1_dx<dimensions>(bitpos);
 }
 
@@ -176,7 +176,7 @@ template<size_t dimensions>
 inline size_t rank_select_mixed_se_512::
 rank1_dx(size_t bitpos) const {
     assert(m_flags & (1 << (dimensions == 0 ? 1 : 4)));
-    assert(bitpos < m_size[dimensions]);
+    assert(bitpos <= m_size[dimensions]);
     const RankCacheMixed& rc = m_rank_cache[bitpos / 512];
     const uint64_t* pu64 = (const uint64_t*)m_words;
     size_t k = bitpos % 512 / 64;

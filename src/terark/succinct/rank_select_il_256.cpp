@@ -101,7 +101,12 @@ void rank_select_il::resize(size_t newsize, bool val) {
 
 void rank_select_il::resize_no_init(size_t newsize) {
     rank_select_check_overflow(newsize, > , rank_select_il_256);
+    size_t oldlines = m_lines.size();
     m_lines.resize_no_init(BitsToLines(newsize));
+    if (g_Terark_hasValgrind && m_lines.size() > oldlines) {
+        size_t inc_lines = m_lines.size() - oldlines;
+        memset(m_lines.data() + oldlines, 0, sizeof(Line) * inc_lines);
+    }
     m_size = newsize;
 }
 
@@ -141,22 +146,6 @@ void rank_select_il::set0(size_t i, size_t nbits) {
 
 void rank_select_il::set1(size_t i, size_t nbits) {
     for (size_t j = 0; j < nbits; ++j) set1(i + j);
-}
-
-bool rank_select_il::isall0() const {
-    for (size_t i = 0, n = m_lines.size(); i < n; ++i)
-        for (size_t j = 0; j < LineWords; ++i)
-            if (m_lines[i].words[j])
-                return false;
-    return true;
-}
-
-bool rank_select_il::isall1() const {
-    for (size_t i = 0, n = m_lines.size(); i < n; ++i)
-        for (size_t j = 0; j < LineWords; ++i)
-            if (bm_uint_t(-1) != m_lines[i].words[j])
-                return false;
-    return true;
 }
 
 size_t rank_select_il::popcnt() const {

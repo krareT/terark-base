@@ -17,32 +17,30 @@ namespace terark {
 inline char MplBoolTrueToSizeOne(boost::mpl::true_);
 inline long MplBoolTrueToSizeOne(boost::mpl::false_);
 
-template<class T> T& DataIO_ReturnObjRef(T*);
-
 struct DummyDataIO {};
 
 // DataIO is just used for workarond <<incomplete type>> compilation errors
 template<class DataIO, class T>
-boost::mpl::true_ Deduce_DataIO_need_bswap(DataIO*, T&);
+boost::mpl::true_ Deduce_DataIO_need_bswap(DataIO*, T*);
 
 #define DataIO_need_bswap_by_sizeof(DataIO, T) \
   ( sizeof(MplBoolTrueToSizeOne(Deduce_DataIO_need_bswap( \
-    (DataIO*)(NULL), DataIO_ReturnObjRef((T*)(NULL))))) == 1 )
+    (DataIO*)(NULL), (T*)(NULL)))) == 1 )
 
-template<class D>boost::mpl::false_ Deduce_DataIO_need_bswap(D*,char&);
-template<class D>boost::mpl::false_ Deduce_DataIO_need_bswap(D*,signed char&);
-template<class D>boost::mpl::false_ Deduce_DataIO_need_bswap(D*,unsigned char&);
+template<class D>boost::mpl::false_ Deduce_DataIO_need_bswap(D*,char*);
+template<class D>boost::mpl::false_ Deduce_DataIO_need_bswap(D*,signed char*);
+template<class D>boost::mpl::false_ Deduce_DataIO_need_bswap(D*,unsigned char*);
 
 template<class DataIO, class T1, class T2>
 boost::mpl::bool_<
   DataIO_need_bswap_by_sizeof(DataIO, T1) ||
   DataIO_need_bswap_by_sizeof(DataIO, T2)
 >
-Deduce_DataIO_need_bswap(DataIO*, std::pair<T1, T2>&);
+Deduce_DataIO_need_bswap(DataIO*, std::pair<T1, T2>*);
 
 template<class DataIO, class T, size_t Dim>
 boost::mpl::bool_<DataIO_need_bswap_by_sizeof(DataIO, T)>
-Deduce_DataIO_need_bswap(DataIO*, T (&)[Dim]);
+Deduce_DataIO_need_bswap(DataIO*, T (*)[Dim]);
 
 template<class T>
 struct DataIO_need_bswap :
@@ -194,7 +192,7 @@ public:
 template<class T>
 void byte_swap(T* p, size_t n)
 {
-	if (decltype(Deduce_DataIO_need_bswap((DummyDataIO*)NULL, *p))::value) {
+	if (decltype(Deduce_DataIO_need_bswap((DummyDataIO*)NULL, p))::value) {
 		for (size_t i = n; i; --i, ++p)
 			byte_swap_in(*p, boost::mpl::true_());
 	}
@@ -203,7 +201,7 @@ void byte_swap(T* p, size_t n)
 template<class Iter>
 void byte_swap(Iter first, Iter last)
 {
-	if (decltype(Deduce_DataIO_need_bswap((DummyDataIO*)NULL, *first))::value) {
+	if (decltype(Deduce_DataIO_need_bswap((DummyDataIO*)NULL, &*first))::value) {
 		for (; first != last; ++first)
 			byte_swap_in(*first, boost::mpl::true_());
 	}

@@ -2,7 +2,7 @@
 	MyType& operator>>(         char& x) { x = (         char)getStream()->readByte(); return *this; }
 	MyType& operator>>(unsigned char& x) { x = (unsigned char)getStream()->readByte(); return *this; }
 	MyType& operator>>(  signed char& x) { x = (  signed char)getStream()->readByte(); return *this; }
-	
+
 	MyType& load(         char* s, size_t n) { this->ensureRead(s, n); return *this; }
 	MyType& load(unsigned char* s, size_t n) { this->ensureRead(s, n); return *this; }
 	MyType& load(  signed char* s, size_t n) { this->ensureRead(s, n); return *this; }

@@ -15,21 +15,6 @@ std::string operator+(fstring x, fstring y) {
 	return z;
 }
 
-bool operator==(fstring x, fstring y) { return  fstring_func::equal()(x, y); }
-bool operator!=(fstring x, fstring y) { return !fstring_func::equal()(x, y); }
-
-bool operator<(fstring x, fstring y) {
-	ptrdiff_t n = std::min(x.n, y.n);
-	int ret = memcmp(x.p, y.p, n);
-	if (ret)
-		return ret < 0;
-	else
-		return x.n < y.n;
-}
-bool operator> (fstring x, fstring y) { return   y < x ; }
-bool operator<=(fstring x, fstring y) { return !(y < x); }
-bool operator>=(fstring x, fstring y) { return !(x < y); }
-
 std::ostream& operator<<(std::ostream& os, fstring x) {
 	os.write(x.data(), x.size());
 	return os;
@@ -301,3 +286,6 @@ std::string escape(fstring str, char quote) {
 }
 
 } // namespace terark
+
+bool g_Terark_hasValgrind = terark::getEnvBool("Terark_hasValgrind", false);
+

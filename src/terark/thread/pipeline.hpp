@@ -82,7 +82,13 @@ protected:
 	PipelineStage *m_prev, *m_next;
 	PipelineProcessor* m_owner;
 
-	struct ThreadData;
+    struct ThreadData {
+        std::string m_err_text;
+        thread*  m_thread;
+        volatile size_t m_run; // size_t is a CPU word, should be bool
+        ThreadData();
+        ~ThreadData();
+    };
 	valvec<ThreadData> m_threads;
 	enum {
 		ple_none,

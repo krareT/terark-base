@@ -38,6 +38,8 @@ public:
     size_t select0(size_t id) const;
     size_t max_rank1() const { return m_max_rank1; }
     size_t max_rank0() const { return m_max_rank0; }
+    bool isall0() const { return m_max_rank1 == 0; }
+    bool isall1() const { return m_max_rank0 == 0; }
 
     const uint32_t* get_rank_cache() const { return m_rank_cache; }
     const uint32_t* get_sel0_cache() const { return NULL; }
@@ -82,6 +84,7 @@ fast_select1(const bm_uint_t* bits, const uint32_t* sel1, const uint32_t* rankCa
 class TERARK_DLL_EXPORT rank_select_allzero {
 public:
     typedef boost::mpl::false_ is_mixed;
+    typedef uint32_t index_t;
     rank_select_allzero() : m_size(0), m_placeholder(nullptr) {}
     explicit
     rank_select_allzero(size_t sz) : m_size(sz), m_placeholder(nullptr) {}
@@ -105,13 +108,15 @@ public:
     size_t mem_size() const { return sizeof(*this); }
     void set0(size_t i) { assert(i < m_size); }
     void set1(size_t i) { assert(i < m_size); }
-    size_t rank0(size_t bitpos) const { assert(bitpos < m_size); return bitpos; }
+    size_t rank0(size_t bitpos) const { assert(bitpos <= m_size); return bitpos; }
     size_t rank1(size_t bitpos) const { return 0; }
     size_t select0(size_t id) const { assert(id < m_size); return id; }
     size_t select1(size_t id) const { return size_t(-1); }
     size_t max_rank0() const { return m_size; }
     size_t max_rank1() const { return 0; }
     size_t size() const { return m_size; }
+    bool isall0() const { return true; }
+    bool isall1() const { return false; }
 
     const void* data() const { return this; }
     bool operator[](size_t n) const { assert(n < m_size); return false; }
@@ -142,6 +147,7 @@ private:
 class TERARK_DLL_EXPORT rank_select_allone {
 public:
     typedef boost::mpl::false_ is_mixed;
+    typedef uint32_t index_t;
     rank_select_allone() : m_size(0), m_placeholder(nullptr) {}
     explicit
     rank_select_allone(size_t sz) : m_size(sz), m_placeholder(nullptr) {}
@@ -165,12 +171,14 @@ public:
     void set0(size_t i) { assert(i < m_size); }
     void set1(size_t i) { assert(i < m_size); }
     size_t rank0(size_t bitpos) const { return 0; }
-    size_t rank1(size_t bitpos) const { assert(bitpos < m_size); return bitpos; }
+    size_t rank1(size_t bitpos) const { assert(bitpos <= m_size); return bitpos; }
     size_t select0(size_t id) const { return size_t(-1); }
     size_t select1(size_t id) const { assert(id < m_size); return id; }
     size_t max_rank0() const { return 0; }
     size_t max_rank1() const { return m_size; }
     size_t size() const { return m_size; }
+    bool isall0() const { return false; }
+    bool isall1() const { return true; }
 
     const void* data() const { return this; }
     bool operator[](size_t n) const { assert(n < m_size); return true; }

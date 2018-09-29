@@ -4,6 +4,7 @@
 #include <string.h>
 #include <terark/num_to_str.hpp>
 #include <stdexcept>
+#include <boost/cstdint.hpp>
 
 #include "MemMapStream.hpp"
 #include "IOException.hpp"

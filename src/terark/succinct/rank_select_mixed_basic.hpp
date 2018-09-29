@@ -91,7 +91,7 @@ public:
     size_t select1(size_t id) const { return this->template select1_dx<dimensions>(id); }
 	size_t max_rank1() const { return this->m_max_rank1[dimensions]; }
 	size_t max_rank0() const { return this->m_max_rank0[dimensions]; }
-    
+
 	static size_t fast_is0(const bldata_t* bits, size_t bitpos) {
         return super::template fast_is0_dx<dimensions>(bits, bitpos);
     }
@@ -112,15 +112,15 @@ public:
         return super::template fast_select1_dx<dimensions>(bits, sel1, rankCache, id);
     }
 	const RankCacheMixed* get_rank_cache() const {
-        assert(this->m_flags & (1 << (dimensions == 0 ? 1 : 4)));
+        assert(this->m_flags & (1 << (1 + 3 * dimensions)));
         return reinterpret_cast<const RankCacheMixed*>(this->get_rank_cache_base());
     }
 	const uint32_t* get_sel0_cache() const {
-        assert(this->m_flags & (1 << (dimensions == 0 ? 2 : 5)));
+        assert(this->m_flags & (1 << (2 + 3 * dimensions)));
         return this->m_sel0_cache[dimensions];
     }
 	const uint32_t* get_sel1_cache() const {
-        assert(this->m_flags & (1 << (dimensions == 0 ? 3 : 6)));
+        assert(this->m_flags & (1 << (3 + 3 * dimensions)));
         return this->m_sel1_cache[dimensions];
     }
 

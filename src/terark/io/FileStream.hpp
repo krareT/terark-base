@@ -10,7 +10,7 @@
 #include <assert.h>
 
 #if defined(__GLIBC__)
-	#include <libio.h>
+//	#include <libio.h>
 #endif
 
 #include <terark/stdtypes.hpp>

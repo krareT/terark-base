@@ -62,11 +62,11 @@ typedef boost::mpl::true_  IsDump_true;
 typedef boost::mpl::false_ IsDump_false;
 
 template<class DataIO, class T>
-IsDump_false Deduce_DataIO_is_dump(DataIO*, T&);
+IsDump_false Deduce_DataIO_is_dump(DataIO*, T*);
 
 #define DataIO_is_dump_by_sizeof(DataIO, T) \
   ( sizeof(terark::MplBoolTrueToSizeOne(Deduce_DataIO_is_dump( \
-    (DataIO*)(NULL), terark::DataIO_ReturnObjRef((T*)(NULL))))) == 1 )
+    (DataIO*)(NULL), (T*)(NULL)))) == 1 )
 
 template<class DataIO, class T1, class T2>
 boost::mpl::bool_<
@@ -74,15 +74,15 @@ boost::mpl::bool_<
   DataIO_is_dump_by_sizeof(DataIO, T2) &&
   sizeof(T1) + sizeof(T2) == sizeof(std::pair<T1,T2>)
 >
-Deduce_DataIO_is_dump(DataIO*, std::pair<T1,T2>&);
+Deduce_DataIO_is_dump(DataIO*, std::pair<T1,T2>*);
 
 template<class DataIO, class T, size_t Dim>
 boost::mpl::bool_<DataIO_is_dump_by_sizeof(DataIO, T)>
-Deduce_DataIO_is_dump(DataIO*, T (&)[Dim]);
+Deduce_DataIO_is_dump(DataIO*, T (*)[Dim]);
 
 template<class DataIO, class T, size_t Dim>
 boost::mpl::bool_<DataIO_is_dump_by_sizeof(DataIO, T)>
-Deduce_DataIO_is_dump(DataIO*, const T (&)[Dim]);
+Deduce_DataIO_is_dump(DataIO*, const T (*)[Dim]);
 
 template<class DataIO, class T>
 struct DataIO_is_dump :
@@ -99,15 +99,15 @@ struct DataIO_is_dump :
 	#define DataIO_IsDump_TypeTrue1(T) \
 		template<class DataIO> \
 		IsDump_true \
-		Deduce_DataIO_is_dump(DataIO*, T&);
+		Deduce_DataIO_is_dump(DataIO*, T*);
 
 	#define DataIO_IsDump_TypeTrue2(ByteOrder, T) \
 		template<class Stream> \
 		IsDump_true \
-		Deduce_DataIO_is_dump(ByteOrder##Input<Stream>*, T&); \
+		Deduce_DataIO_is_dump(ByteOrder##Input<Stream>*, T*); \
 		template<class Stream> \
 		IsDump_true \
-		Deduce_DataIO_is_dump(ByteOrder##Output<Stream>*, T&);
+		Deduce_DataIO_is_dump(ByteOrder##Output<Stream>*, T*);
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #endif // TERARK_DATA_IO_DISABLE_OPTIMIZE_DUMPABLE
@@ -130,23 +130,23 @@ struct DataIO_is_dump :
 
 template<class DataIO, class Derived>
 auto
-Workaround_IncompleteType_for_is_dump(DataIO* dio, Derived& derived) ->
-decltype(derived._M_Deduce_DataIO_is_realdump(dio).is_dumpable());
+Workaround_IncompleteType_for_is_dump(DataIO* dio, Derived* derived) ->
+decltype(derived->_M_Deduce_DataIO_is_realdump(dio).is_dumpable());
 
 template<class DataIO, class Derived>
 auto
-Workaround_IncompleteType_for_need_bswap(DataIO* dio, Derived& derived) ->
-decltype(derived._M_Deduce_DataIO_need_bswap(dio).need_bswap());
+Workaround_IncompleteType_for_need_bswap(DataIO* dio, Derived* derived) ->
+decltype(derived->_M_Deduce_DataIO_need_bswap(dio).need_bswap());
 
 #define DATA_IO_GEN_DUMP_TYPE_TRAITS_REG(Friend, Derived, Class) \
     template<class DataIO> \
     Friend auto \
-    Deduce_DataIO_need_bswap(DataIO* dio, Class& self) -> \
-    decltype(terark::Workaround_IncompleteType_for_need_bswap(dio, static_cast<Derived&>(self))); \
+    Deduce_DataIO_need_bswap(DataIO* dio, Class* self) -> \
+    decltype(terark::Workaround_IncompleteType_for_need_bswap(dio, static_cast<Derived*>(self))); \
     template<class DataIO> \
     Friend auto \
-    Deduce_DataIO_is_dump(DataIO* dio, Class& self) -> \
-    decltype(terark::Workaround_IncompleteType_for_is_dump(dio, static_cast<Derived&>(self)));
+    Deduce_DataIO_is_dump(DataIO* dio, Class* self) -> \
+    decltype(terark::Workaround_IncompleteType_for_is_dump(dio, static_cast<Derived*>(self)));
 #else
     #define DATA_IO_GEN_DUMP_TYPE_TRAITS(Class, Members)
     #define DATA_IO_GEN_DUMP_TYPE_TRAITS_REG(Friend, Derived, Class)

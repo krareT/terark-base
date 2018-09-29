@@ -50,15 +50,6 @@ public:
 	}
 };
 
-struct PipelineStage::ThreadData {
-  std::string m_err_text;
-  thread*  m_thread;
-  volatile size_t m_run; // size_t is a CPU word, should be bool
-
-  ThreadData();
-  ~ThreadData();
-};
-
 PipelineStage::ThreadData::ThreadData() : m_run(false) {
 	m_thread = NULL;
 }
@@ -95,6 +86,7 @@ PipelineStage::~PipelineStage()
 	delete m_out_queue;
 	for (size_t threadno = 0; threadno != m_threads.size(); ++threadno)
 	{
+		assert(!m_threads[threadno].m_thread->joinable());
 		delete m_threads[threadno].m_thread;
 	}
 }
@@ -193,6 +185,7 @@ void PipelineStage::start(int queue_size)
 		// first:  construct the PipelineThread and assign it to m_threads[threadno]
 		// second: start the thread
 		//
+		assert(m_threads[threadno].m_thread == nullptr);
 		m_threads[threadno].m_thread = new thread(
 			TerarkFuncBind(&PipelineStage::run_wrapper, this, threadno));
 	}
@@ -543,7 +536,7 @@ void FunPipelineStage::process(int threadno, PipelineQueueItem* task)
 class Null_PipelineStage : public PipelineStage
 {
 public:
-	Null_PipelineStage() : PipelineStage(0) {}
+	Null_PipelineStage() : PipelineStage(0) { m_threads.clear(); }
 protected:
 	virtual void process(int /*threadno*/, PipelineQueueItem* /*task*/)
 	{
@@ -635,10 +628,29 @@ int PipelineProcessor::total_steps() const
 	return step_ordinal(m_head);
 }
 
+/// for users, this function is used for self-driven pipeline
+///
+/// and this function will also be called by compile() for enqueue-driven
+/// pipeline: tasks are enqueue'ed by users calling pipeline.enqueue(task)
+///
+/// self-driven and enqueue-driven are exclusive
+///
 void PipelineProcessor::start()
 {
 	assert(m_head);
 	assert(total_steps() >= 2 || (total_steps() >= 1 && NULL != m_head->m_out_queue));
+
+// start() will be called at the end of compile(), so:
+// if compile() was called, then start() should not be called
+// Begin check for double start
+	for (PipelineStage* s = m_head->m_next; s != m_head; s = s->m_next) {
+		assert(s->m_threads.size() > 0);
+		for (size_t i = 0; i < s->m_threads.size(); ++i) {
+			// if pipeline was compiled, it should not call start
+			TERARK_RT_assert(NULL == s->m_threads[i].m_thread, std::invalid_argument);
+		}
+	}
+// End check for double start
 
 	m_run = true;
 
@@ -684,6 +696,17 @@ void PipelineProcessor::compile()
 }
 void PipelineProcessor::compile(int input_feed_queue_size)
 {
+// start() will be called at the end of compile(), so:
+// if compile() was called, then start() should not be called
+// Begin check for double start
+	for (PipelineStage* s = m_head->m_next; s != m_head; s = s->m_next) {
+		assert(s->m_threads.size() > 0);
+		for (size_t i = 0; i < s->m_threads.size(); ++i) {
+			// if pipeline was compiled, it should not call start
+			TERARK_RT_assert(NULL == s->m_threads[i].m_thread, std::invalid_argument);
+		}
+	}
+// End check for double start
 	m_head->m_out_queue = new PipelineStage::queue_t(input_feed_queue_size);
 	start();
 }

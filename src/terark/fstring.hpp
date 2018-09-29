@@ -429,19 +429,27 @@ TERARK_DLL_EXPORT
 std::string operator+(fstring x, fstring y);
 inline std::string operator+(fstring x, const char* y) {return x+fstring(y);}
 inline std::string operator+(const char* x, fstring y) {return fstring(x)+y;}
-#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
+#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L || defined(_MSC_VER) && _MSC_VER >= 1400
 inline std::string operator+(std::string&& x, fstring y) { return x.append(   y.p, y.n); }
 inline std::string operator+(fstring x, std::string&& y) { return y.insert(0, x.p, x.n); }
 #endif
 
-TERARK_DLL_EXPORT bool operator==(fstring x, fstring y);
-TERARK_DLL_EXPORT bool operator!=(fstring x, fstring y);
-
-TERARK_DLL_EXPORT bool operator<(fstring x, fstring y);
-TERARK_DLL_EXPORT bool operator>(fstring x, fstring y);
-
-TERARK_DLL_EXPORT bool operator<=(fstring x, fstring y);
-TERARK_DLL_EXPORT bool operator>=(fstring x, fstring y);
+inline bool operator==(fstring x, fstring y) {
+    if (x.n != y.n)
+        return false;
+    return memcmp(x.p, y.p, x.n) == 0;
+}
+inline bool operator!=(fstring x, fstring y) { return !(x == y); }
+inline bool operator< (fstring x, fstring y) {
+    int cmp = memcmp(x.p, y.p, std::min(x.n, y.n));
+    if (cmp)
+        return cmp < 0;
+    else
+        return x.n < y.n;
+}
+inline bool operator> (fstring x, fstring y) { return  (y < x); }
+inline bool operator<=(fstring x, fstring y) { return !(y < x); }
+inline bool operator>=(fstring x, fstring y) { return !(x < y); }
 
 TERARK_DLL_EXPORT std::ostream& operator<<(std::ostream& os, fstring s);
 

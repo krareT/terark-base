@@ -1,4 +1,5 @@
 #include "bitmap.hpp"
+#include <terark/fstring.hpp>
 #include <terark/util/autofree.hpp>
 #include <terark/util/throw.hpp>
 #include <algorithm>
@@ -170,6 +171,10 @@ void febitvec::reserve(size_t newcap) {
 		bm_uint_t* q = (bm_uint_t*)realloc(m_words, newcap/8);
 		if (NULL == q)
 			throw std::bad_alloc();
+		if (g_Terark_hasValgrind) {
+			size_t oldwords = ceiled_div(m_size, WordBits);
+			std::fill(q + oldwords, q + newcap / WordBits, 0);
+		}
 		m_words = q;
 		m_capacity = newcap;
 	}
@@ -192,6 +197,10 @@ void febitvec::resize_no_init(size_t newsize) {
 		bm_uint_t* q = (bm_uint_t*)realloc(m_words, newcap/8);
 		if (NULL == q)
 			throw std::bad_alloc();
+		if (g_Terark_hasValgrind) {
+			size_t oldwords = ceiled_div(m_size, WordBits);
+			std::fill(q + oldwords, q + newcap / WordBits, 0);
+		}
 		m_words = q;
 		m_capacity = newcap;
 	}

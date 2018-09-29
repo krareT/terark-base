@@ -39,6 +39,8 @@ public:
     size_t select1(size_t id) const;
     size_t max_rank1() const { return m_max_rank1; }
     size_t max_rank0() const { return m_max_rank0; }
+    bool isall0() const { return m_max_rank1 == 0; }
+    bool isall1() const { return m_max_rank0 == 0; }
 protected:
     void nullize_cache();
     struct RankCache {
@@ -69,13 +71,13 @@ public:
 
 inline size_t rank_select_se::
 rank0(size_t bitpos) const {
-    assert(bitpos < m_size);
+    assert(bitpos <= m_size);
     return bitpos - rank1(bitpos);
 }
 
 inline size_t rank_select_se::
 rank1(size_t bitpos) const {
-    assert(bitpos < m_size);
+    assert(bitpos <= m_size);
     RankCache rc = m_rank_cache[bitpos / LineBits];
     return rc.lev1 + rc.lev2[(bitpos / 64) % 4] +
         fast_popcount_trail(

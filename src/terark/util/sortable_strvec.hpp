@@ -86,11 +86,14 @@ public:
 	void compact();
 	void compress_strpool(int compressLevel);
 	void make_ascending_offset();
+	void make_ascending_seq_id();
 	size_t lower_bound_by_offset(size_t offset) const;
 	size_t upper_bound_by_offset(size_t offset) const;
 	size_t upper_bound_at_pos(size_t lo, size_t hi, size_t pos, byte_t ch) const;
 	size_t lower_bound(fstring) const;
 	size_t upper_bound(fstring) const;
+	size_t find(fstring) const;
+    size_t max_strlen() const;
 private:
 	void compress_strpool_level_1();
 	void compress_strpool_level_2();
@@ -113,6 +116,83 @@ private:
 		dio.ensureWrite(x.m_index.data(), x.m_index.used_mem_size());
 		dio.ensureWrite(x.m_strpool.data(), x.m_strpool.used_mem_size());
 	}
+
+public:
+    template<class Pred>
+    size_t erase_if(Pred pred) {
+#ifndef NDEBUG
+        // requires sorted by offset
+        for (size_t k = 1; k < m_index.size(); ++k) {
+            assert(m_index[k-1].offset <= m_index[k].offset);
+        }
+#endif
+        size_t offset = 0;
+        size_t j = 0, k = 0, n = m_index.size();
+        for (; k < n; k++) {
+            fstring str = (*this)[k];
+            if (!pred(str)) {
+                m_index[j].length = str.size();
+                m_index[j].offset = offset;
+                m_index[j].seq_id = m_index[k].seq_id;
+                memmove(m_strpool.data() + offset, str.data(), str.size());
+                j++;
+                offset += str.size();
+            }
+        }
+        m_index.risk_set_size(j);
+        m_strpool.risk_set_size(offset);
+        return j;
+    }
+    template<class Pred2>
+    size_t erase_if2(Pred2 pred2) {
+#ifndef NDEBUG
+        // requires sorted by offset
+        for (size_t k = 1; k < m_index.size(); ++k) {
+            assert(m_index[k-1].offset <= m_index[k].offset);
+        }
+#endif
+        size_t offset = 0;
+        size_t j = 0, k = 0, n = m_index.size();
+        for (; k < n; k++) {
+            fstring str = (*this)[k];
+            if (!pred2(k, str)) {
+                m_index[j].length = str.size();
+                m_index[j].offset = offset;
+                m_index[j].seq_id = m_index[k].seq_id;
+                memmove(m_strpool.data() + offset, str.data(), str.size());
+                j++;
+                offset += str.size();
+            }
+        }
+        m_index.risk_set_size(j);
+        m_strpool.risk_set_size(offset);
+        return j;
+    }
+    template<class Pred3>
+    size_t erase_if3(Pred3 pred3) {
+#ifndef NDEBUG
+        // requires sorted by offset
+        for (size_t k = 1; k < m_index.size(); ++k) {
+            assert(m_index[k-1].offset <= m_index[k].offset);
+        }
+#endif
+        size_t offset = 0;
+        size_t j = 0, k = 0, n = m_index.size();
+        for (; k < n; k++) {
+            fstring str = (*this)[k];
+            if (!pred3(j, k, str)) {
+                m_index[j].length = str.size();
+                m_index[j].offset = offset;
+                m_index[j].seq_id = m_index[k].seq_id;
+                memmove(m_strpool.data() + offset, str.data(), str.size());
+                j++;
+                offset += str.size();
+            }
+        }
+        m_index.risk_set_size(j);
+        m_strpool.risk_set_size(offset);
+        return j;
+    }
 };
 
 class TERARK_DLL_EXPORT FixedLenStrVec {
@@ -140,6 +220,8 @@ public:
         size_t offset = fixlen * idx;
         return fstring(m_strpool.data() + offset, fixlen);
     }
+    const byte_t* data() const { return m_strpool.data(); }
+    byte_t* data() { return m_strpool.data(); }
     byte_t* mutable_nth_data(size_t idx) { return m_strpool.data() + m_fixlen * idx; }
     const
     byte_t* nth_data(size_t idx) const { return m_strpool.data() + m_fixlen * idx; }
@@ -161,6 +243,7 @@ public:
     size_t upper_bound(fstring) const;
     size_t lower_bound(size_t lo, size_t hi, fstring) const;
     size_t upper_bound(size_t lo, size_t hi, fstring) const;
+    size_t max_strlen() const { return m_fixlen; }
 };
 
 class TERARK_DLL_EXPORT SortedStrVec {
@@ -212,6 +295,7 @@ public:
     size_t upper_bound_at_pos(size_t lo, size_t hi, size_t pos, byte_t ch) const;
     size_t lower_bound(fstring) const;
     size_t upper_bound(fstring) const;
+    size_t max_strlen() const;
 };
 
 } // namespace terark

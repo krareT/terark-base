@@ -201,28 +201,32 @@ void rank_select_mixed_il_256::grow() {
     assert(std::max(m_size[0], m_size[1]) == m_capacity / sizeof(RankCacheMixed) * LineBits);
     assert((m_flags & (1 << 1)) == 0);
     assert((m_flags & (1 << 4)) == 0);
-    m_capacity = std::max(m_capacity, sizeof(RankCacheMixed));
-    auto new_lines = (RankCacheMixed*)realloc(m_lines, m_capacity * 2);
+    size_t newcapBytes = 2 * std::max(m_capacity, sizeof(RankCacheMixed));
+    auto new_lines = (RankCacheMixed*)realloc(m_lines, newcapBytes);
     if (NULL == new_lines)
         throw std::bad_alloc();
+    if (g_Terark_hasValgrind)
+        memset((byte_t*)new_lines + m_capacity, 0, newcapBytes - m_capacity);
     m_lines = new_lines;
-    m_capacity *= 2;
+    m_capacity = newcapBytes;
 }
 
-void rank_select_mixed_il_256::reserve_bytes(size_t capacity) {
-    assert(capacity == ((capacity + sizeof(bm_uint_t) - 1) & ~(sizeof(bm_uint_t) - 1)));
-    if (capacity <= m_capacity)
+void rank_select_mixed_il_256::reserve_bytes(size_t newcapBytes) {
+    assert(align_up(newcapBytes, sizeof(bm_uint_t)) == newcapBytes);
+    if (newcapBytes <= m_capacity)
         return;
-    auto new_lines = (RankCacheMixed*)realloc(m_lines, capacity);
+    auto new_lines = (RankCacheMixed*)realloc(m_lines, newcapBytes);
     if (NULL == new_lines)
         throw std::bad_alloc();
+    if (g_Terark_hasValgrind)
+        memset((byte_t*)new_lines + m_capacity, 0, newcapBytes - m_capacity);
     m_lines = new_lines;
-    m_capacity = capacity;
+    m_capacity = newcapBytes;
 }
 
-void rank_select_mixed_il_256::reserve(size_t capacity) {
-    assert(capacity == ((capacity + LineBits - 1) & ~(LineBits - 1)));
-    reserve_bytes(capacity / LineBits * sizeof(RankCacheMixed));
+void rank_select_mixed_il_256::reserve(size_t newcapBits) {
+    assert(align_up(newcapBits, LineBits) == newcapBits);
+    reserve_bytes(newcapBits / LineBits * sizeof(RankCacheMixed));
 }
 
 void rank_select_mixed_il_256::nullize_cache() {

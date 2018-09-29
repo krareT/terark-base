@@ -222,7 +222,7 @@ public:
 		BaseClass::attach(stream);
 		m_os = stream;
 	}
-	
+
 	IOutputStream* getOutputStream() const { return m_os; }
 
 	void flush();

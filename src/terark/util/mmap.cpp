@@ -43,7 +43,7 @@ mmap_load(const char* fname, size_t* fsize, bool writable, bool populate) {
 		, NULL // lpSecurityAttributes
 		, writable ? OPEN_ALWAYS : OPEN_EXISTING
 		, FILE_ATTRIBUTE_NORMAL
-		, NULL // hTemplateFile 
+		, NULL // hTemplateFile
 		);
 	if (INVALID_HANDLE_VALUE == hFile) {
 		DWORD err = GetLastError();

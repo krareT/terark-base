@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdexcept>
 #include <algorithm>
+#include <boost/cstdint.hpp>
 
 #include "ZcMemMap.hpp"
 #include "IOException.hpp"

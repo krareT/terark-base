@@ -19,7 +19,6 @@
 # include <boost/detail/endian.hpp>
 #endif
 
-#include <boost/cstdint.hpp>
 #include <boost/current_function.hpp>
 
 #include <limits.h>
@@ -28,6 +27,7 @@
 	#if _MSC_VER >= 1800
 		#include <stdint.h>
 	#else
+		#include <boost/cstdint.hpp>
 		using boost::int8_t;
 		using boost::int16_t;
 		using boost::int32_t;
@@ -91,6 +91,30 @@ inline SizeT align_down(SizeT size, AlignT align_size)
 {
 	return size - size % align_size;
 }
+
+template<class SizeT, class AlignT>
+inline SizeT remain_on_align(SizeT n, AlignT align)
+{
+/*  if (size % align == 0)
+        return 0;
+    else
+        return align - (n % align);
+*/
+    return align - 1 - (n - 1) % align;
+}
+
+template<class SizeT, class AlignT>
+inline SizeT pow2_align_up(SizeT size, AlignT align) {
+    assert(((align-1) & align) == 0);
+	return (size + align-1) & ~SizeT(align-1);
+}
+
+template<class SizeT, class AlignT>
+inline SizeT pow2_align_down(SizeT size, AlignT align) {
+    assert(((align-1) & align) == 0);
+	return size & ~SizeT(align-1);
+}
+
 
 // StaticUintBits<255>::value = 8
 // StaticUintBits<256>::value = 9

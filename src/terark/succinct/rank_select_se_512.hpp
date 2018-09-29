@@ -41,6 +41,8 @@ public:
     size_t select1(size_t id) const;
     size_t max_rank1() const { return m_max_rank1; }
     size_t max_rank0() const { return m_max_rank0; }
+    bool isall0() const { return m_max_rank1 == 0; }
+    bool isall1() const { return m_max_rank0 == 0; }
 protected:
 #pragma pack(push,4)
     struct TERARK_DLL_EXPORT RankCache512 {
@@ -77,14 +79,14 @@ public:
 template<class rank_cache_base_t>
 inline size_t rank_select_se_512_tpl<rank_cache_base_t>::
 rank0(size_t bitpos) const {
-    assert(bitpos < m_size);
+    assert(bitpos <= m_size); // bitpos can be m_size
     return bitpos - rank1(bitpos);
 }
 
 template<class rank_cache_base_t>
 inline size_t rank_select_se_512_tpl<rank_cache_base_t>::
 rank1(size_t bitpos) const {
-    assert(bitpos < m_size);
+    assert(bitpos <= m_size); // bitpos can be m_size
     const RankCache512& rc = m_rank_cache[bitpos / 512];
     const uint64_t* pu64 = (const uint64_t*)this->m_words;
     size_t k = bitpos % 512 / 64;
